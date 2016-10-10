@@ -32,11 +32,11 @@ interface CacheItemPoolInterface extends \Psr\Cache\CacheItemPoolInterface
      * Fetch an item value from the cache, and/or save the value if it doesnt exist.
      *
      * @param string $key
-     * @param int $seconds
      * @param $value
+     * @param int $seconds
      * @return mixed
      */
-    public function remember(string $key, $seconds = 0, $value);
+    public function remember(string $key, $value, $seconds = 0);
 
     /**
      * Get and remove an item from the cache.
@@ -65,6 +65,16 @@ interface CacheItemPoolInterface extends \Psr\Cache\CacheItemPoolInterface
      * @return bool
      */
     public function add(string $key, $value, $seconds = 0) : bool;
+
+    /**
+     * Add an item if it doesnt exist later.
+     *
+     * @param string $key
+     * @param $value
+     * @param int $seconds
+     * @return bool
+     */
+    public function defer(string $key, $value, $seconds = 0) : bool;
 
     /**
      * Add a cache item forever.

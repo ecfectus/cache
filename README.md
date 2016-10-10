@@ -144,4 +144,4 @@ $cache->setRedisConnection('connection_name', $redisInstance);
 Now when a `connection` config is needed, you can reference the `connection_name` and it will be used.
 
 You can provide your whole config to the CacheManager instance, only the builtin driver types will be added via `extend`,
-if you config provides a driver not included in the package you will need to add it yourself via the `extend` method as discussed above.
+if your config provides a driver not included in the package you will need to add it yourself via the `extend` method as discussed above.

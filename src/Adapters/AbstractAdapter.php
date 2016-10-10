@@ -39,7 +39,7 @@ abstract class AbstractAdapter implements CacheItemPoolInterface
     /**
      * @inheritDoc
      */
-    public function remember(string $key, $seconds = 0, $value)
+    public function remember(string $key, $value, $seconds = 0)
     {
         if($this->has($key)){
             return $this->get($key);
@@ -84,10 +84,30 @@ abstract class AbstractAdapter implements CacheItemPoolInterface
      */
     public function add(string $key, $value, $seconds = 0) : bool
     {
-        if(!$this->has($key)){
+        if($this->has($key)){
             return false;
         }
         return $this->put($key, $value, $seconds);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function defer(string $key, $value, $seconds = 0) : bool
+    {
+        if($this->has($key)){
+            return false;
+        }
+        $item = $this->getItem($key);
+        $item->set($value);
+
+        if(is_int($seconds) && $seconds !== 0) {
+            $item->expiresAfter($seconds);
+        } elseif($seconds instanceof \DateTime){
+            $item->expiresAt($seconds);
+        }
+
+        return $this->saveDeferred($item);
     }
 
     /**

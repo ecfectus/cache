@@ -141,9 +141,8 @@ class CacheManager implements CacheManagerInterface, CacheItemPoolInterface
         $stores = $this->config['stores'] ?? [];
 
         foreach($stores as $key => $store){
-
             if(in_array($store['driver'] ?? '', $this->builtInDrivers)){
-                $this->extends($key, function($driver) use ($store){
+                $this->extend($key, function() use ($store){
                     return $this->createProxyAdapter($store);
                 });
             }
@@ -229,7 +228,7 @@ class CacheManager implements CacheManagerInterface, CacheItemPoolInterface
                 return new ProxyAdapter(new PhpFilesAdapter($config['namespace'] ?? '', $config['lifetime'] ?? 0, $config['path'] ?? null));
                 break;
             case 'phparray':
-                return new ProxyAdapter(new PhpArrayAdapter($config['path'] ?? null, $this->driver($config['fallback'] ?? null)));
+                return new ProxyAdapter(new PhpArrayAdapter($config['path'] ?? null, $this->driver($config['fallback'] ?? null)->getPool()));
                 break;
             case 'apcu':
                 return new ProxyAdapter(new ApcuAdapter($config['namespace'] ?? '',$config['lifetime'] ?? 0, $config['version'] ?? null));
@@ -263,7 +262,7 @@ class CacheManager implements CacheManagerInterface, CacheItemPoolInterface
                 return new ProxyAdapter(new ChainAdapter($adapters, $config['lifetime'] ?? 0));
                 break;
         }
-        throw new \Exception("Cannot create {$config['driver']} driver via the internal mechanisms.");
+        throw new \InvalidArgumentException("Cannot create {$config['driver']} driver via the internal mechanisms.");
     }
 
     /**
@@ -357,9 +356,9 @@ class CacheManager implements CacheManagerInterface, CacheItemPoolInterface
     /**
      * @inheritDoc
      */
-    public function remember(string $key, $seconds = 0, $value)
+    public function remember(string $key, $value, $seconds = 0)
     {
-        return $this->driver()->remember($key, $seconds, $value);
+        return $this->driver()->remember($key, $value, $seconds);
     }
 
     /**
@@ -384,6 +383,14 @@ class CacheManager implements CacheManagerInterface, CacheItemPoolInterface
     public function add(string $key, $value, $seconds = 0) : bool
     {
         return $this->driver()->add($key, $value, $seconds);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function defer(string $key, $value, $seconds = 0) : bool
+    {
+        return $this->driver()->defer($key, $value, $seconds);
     }
 
     /**

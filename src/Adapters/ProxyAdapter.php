@@ -28,6 +28,14 @@ class ProxyAdapter extends AbstractAdapter
     }
 
     /**
+     * @return null
+     */
+    public function getPool()
+    {
+        return $this->pool;
+    }
+
+    /**
      * @inheritDoc
      */
     public function getItem($key)
