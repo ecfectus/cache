@@ -44,7 +44,7 @@ Or to access the default store, just call the method needed directly on the mana
 $cache->get('itemkey', 'default');
 ```
 
-All PSR6 methods are available on each store, plus our extra [CacheItemPoolInterface](src/CacheItemPoolInterface) methods, which remove the verbosity of `CacheItem` objects and simply return the item:
+All PSR6 methods are available on each store, plus our extra [CacheItemPoolInterface](/blob/master/src/CacheItemPoolInterface.php) methods, which remove the verbosity of `CacheItem` objects and simply return the item:
 
 ```php
 $item = $cache->getItem('key');
