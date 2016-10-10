@@ -1,0 +1,42 @@
+{
+    "name": "ecfectus/cache",
+    "description": "A PSR 6 and PHP 7 cache package",
+    "license": "MIT",
+    "homepage": "https://github.com/ecfectus/cache",
+    "authors": [
+        {
+            "name": "leemason",
+            "email": "contact@nohalfpixels.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0.0",
+        "symfony/cache": "dev-master",
+        "ecfectus/manager": "dev-master",
+        "ecfectus/events": "dev-master",
+        "psr/cache": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit" : "^5.5.0",
+        "phpdocumentor/phpdocumentor": "2.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ecfectus\\Cache\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ecfectus\\Cache\\Test\\": "tests"
+        }
+    },
+    "suggests": {
+        "predis/predis": "For using the Redis store",
+        "symfony/polyfill-apcu": "For using Apcu store"
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "docs": "vendor/bin/phpdoc"
+    },
+    "minimum-stability": "dev"
+}
