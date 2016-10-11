@@ -21,72 +21,6 @@ use Symfony\Component\Cache\Adapter\PhpFilesAdapter;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 
-$config = [
-    'store' => 'file',
-    'stores' => [
-        'array' => [
-            'driver' => 'array',
-            'lifetime' => 0,
-            'serialize' => true
-        ],
-        'null' => [
-            'driver' => 'null'
-        ],
-        'file' => [
-            'driver' => 'file',
-            'path' => null,
-            'namespace' => '',
-            'lifetime' => 0
-        ],
-        'phpfiles' => [
-            'driver' => 'phpfiles',
-            'path' => null,
-            'namespace' => '',
-            'lifetime' => 0
-        ],
-        'phparray' => [
-            'driver' => 'phparray',
-            'path' => null,
-            'fallback' => 'file'
-        ],
-        'apcu' => [
-            'driver' => 'apcu',
-            'namespace' => '',
-            'lifetime' => 0,
-            'version' => null
-        ],
-        'pdo' => [
-            'driver' => 'pdo',
-            'connection' => '',
-            'namespace' => '',
-            'lifetime' => 0,
-            'options' => [
-                'db_table' => 'cache_items',
-                'db_id_col' => 'item_id',
-                'db_data_col' => 'item_data',
-                'db_lifetime_col' => 'item_lifetime',
-                'db_time_col' => 'item_time',
-                'db_username' => '',
-                'db_password' => '',
-                'db_connection_options' => []
-            ]
-        ],
-        'redis' => [
-            'driver' => 'redis',
-            'namespace' => '',
-            'lifetime' => 0
-        ],
-        'chain' => [
-            'driver' => 'chain',
-            'stores' => [
-                'array',
-                'file'
-            ],
-            'lifetime' => 0
-        ]
-    ]
-];
-
 class CacheManager implements CacheManagerInterface, CacheItemPoolInterface
 {
     use Manager;
@@ -234,23 +168,29 @@ class CacheManager implements CacheManagerInterface, CacheItemPoolInterface
                 return new ProxyAdapter(new ApcuAdapter($config['namespace'] ?? '',$config['lifetime'] ?? 0, $config['version'] ?? null));
                 break;
             case 'pdo':
-                if(!isset($this->connections['pdo'][$config['connection']]) || !$this->connections['pdo'][$config['connection']] instanceof \PDO){
-                    throw new \InvalidArgumentException("PDO connection: {$config['connection']} is not set, or is not an instance of PDO!");
+                $conn = $config['connection'] ?? '';
+                if(
+                    !isset($this->connections['pdo'][$conn]) ||
+                    !$this->connections['pdo'][$conn] instanceof \PDO
+                ){
+                    throw new \InvalidArgumentException("PDO connection: {$conn} is not set, or is not an instance of PDO!");
                 }
-                $pdo = $this->connections['pdo'][$config['connection']];
+                $pdo = $this->connections['pdo'][$conn];
                 return new ProxyAdapter(new PdoAdapter($pdo, $config['namespace'] ?? '', $config['lifetime'] ?? 0, $config['options'] ?? []));
                 break;
             case 'redis':
+                $conn = $config['connection'] ?? '';
                 if(
-                    !isset($this->connections['redis'][$config['connection']]) ||
-                    !$this->connections['redis'][$config['connection']] instanceof \Redis &&
-                    !$this->connections['redis'][$config['connection']] instanceof \RedisArray &&
-                    !$this->connections['redis'][$config['connection']] instanceof \RedisCluster &&
-                    !$this->connections['redis'][$config['connection']] instanceof \Predis\Client
+                    !isset($this->connections['redis'][$conn]) ||
+                    isset($this->connections['redis'][$conn]) &&
+                    !$this->connections['redis'][$conn] instanceof \Redis &&
+                    !$this->connections['redis'][$conn] instanceof \RedisArray &&
+                    !$this->connections['redis'][$conn] instanceof \RedisCluster &&
+                    !$this->connections['redis'][$conn] instanceof \Predis\Client
                 ){
-                    throw new \InvalidArgumentException("Redis connection: {$config['connection']} is not set, or is not an instance of Redis!");
+                    throw new \InvalidArgumentException("Redis connection: {$conn} is not set, or is not an instance of Redis!");
                 }
-                $redis = $this->connections['redis'][$config['connection']];
+                $redis = $this->connections['redis'][$conn];
                 return new ProxyAdapter(new RedisAdapter($redis, $config['namespace'] ?? '', $config['lifetime'] ?? 0));
                 break;
             case 'chain':

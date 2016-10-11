@@ -95,9 +95,6 @@ abstract class AbstractAdapter implements CacheItemPoolInterface
      */
     public function defer(string $key, $value, $seconds = 0) : bool
     {
-        if($this->has($key)){
-            return false;
-        }
         $item = $this->getItem($key);
         $item->set($value);
 

@@ -10,6 +10,7 @@ use Symfony\Component\Cache\Adapter\ApcuAdapter;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\NullAdapter;
 use Symfony\Component\Cache\Adapter\PhpFilesAdapter;
+use Predis\Client;
 
 class CacheTest extends TestCase
 {
@@ -59,6 +60,12 @@ class CacheTest extends TestCase
     {
         $cache = new CacheManager();
         $cache->setRedisConnection('conn', new \stdClass());
+    }
+
+    public function testValidRedisConnection()
+    {
+        $cache = new CacheManager();
+        $cache->setRedisConnection('conn', new Client());
     }
 
     public function testValidConstructor()
@@ -134,6 +141,7 @@ class CacheTest extends TestCase
         $pdo = new \PDO('sqlite:dbname=:memory');
         $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $cache->setPdoConnection('conn', $pdo);
+        $cache->setRedisConnection('conn', new Client());
 
         $this->assertInstanceOf(ProxyAdapter::class, $cache->createProxyAdapter(['driver' => 'null']));
         $this->assertInstanceOf(ProxyAdapter::class, $cache->createProxyAdapter(['driver' => 'array']));
@@ -145,7 +153,7 @@ class CacheTest extends TestCase
         if(ApcuAdapter::isSupported()){
             $this->assertInstanceOf(ProxyAdapter::class, $cache->createProxyAdapter(['driver' => 'apcu']));
         }
-        //$this->assertInstanceOf(ProxyAdapter::class, $cache->createProxyAdapter(['driver' => 'redis']));
+        $this->assertInstanceOf(ProxyAdapter::class, $cache->createProxyAdapter(['driver' => 'redis', 'connection' => 'conn']));
         $this->assertInstanceOf(ProxyAdapter::class, $cache->createProxyAdapter(['driver' => 'pdo', 'connection' => 'conn']));
         $this->assertInstanceOf(ProxyAdapter::class, $cache->createProxyAdapter(['driver' => 'chain', 'stores' => ['null', 'array']]));
     }
@@ -157,6 +165,24 @@ class CacheTest extends TestCase
     {
         $cache = new CacheManager();
         $adapter = $cache->createProxyAdapter(['driver' => 'unknown']);
+    }
+
+    /**
+     * @expectedException InvalidArgumentException
+     */
+    public function testWrappingWithProxyAdapterUnkownPdoConnection()
+    {
+        $cache = new CacheManager();
+        $adapter = $cache->createProxyAdapter(['driver' => 'pdo']);
+    }
+
+    /**
+     * @expectedException InvalidArgumentException
+     */
+    public function testWrappingWithProxyAdapterUnkownRedisConnection()
+    {
+        $cache = new CacheManager();
+        $adapter = $cache->createProxyAdapter(['driver' => 'redis']);
     }
 
     public function testPuttingItem()
@@ -173,6 +199,11 @@ class CacheTest extends TestCase
         $cache->put('key', 'thevalue');
 
         $this->assertEquals('thevalue', $cache->get('key'));
+
+        $cache->put('key1', 'thevalue', \DateInterval::createFromDateString('+1 hour'));
+
+        $cache->put('key2', 'thevalue', new \DateTime());
+
     }
 
     public function testHasItem()
@@ -187,10 +218,12 @@ class CacheTest extends TestCase
         ]);
 
         $this->assertFalse($cache->has('key'));
+        $this->assertFalse($cache->hasItem('key'));
 
         $cache->put('key', 'thevalue');
 
         $this->assertTrue($cache->has('key'));
+        $this->assertTrue($cache->hasItem('key'));
     }
 
     public function testGetItem()
@@ -209,6 +242,12 @@ class CacheTest extends TestCase
         $cache->put('key', 'thevalue');
 
         $this->assertEquals('thevalue', $cache->get('key', 'thevalue'));
+
+        $cache->put('key1', 'theexpiredvalue', 1);
+
+        sleep(2);
+
+        $this->assertEquals('thevalue', $cache->get('key1', 'thevalue'));
     }
 
     public function testPullItem()
@@ -231,6 +270,8 @@ class CacheTest extends TestCase
         $this->assertFalse($cache->has('key'));
 
         $this->assertEquals('thevalue', $value);
+
+        $this->assertNull($cache->pull('key1'));
     }
 
     public function testAddItem()
@@ -277,6 +318,74 @@ class CacheTest extends TestCase
         $cache->forget('key');
 
         $this->assertFalse($cache->has('key'));
+
+        $cache->add('key', 'thevalue');
+
+        $cache->deleteItem('key');
+
+        $this->assertFalse($cache->has('key'));
+    }
+
+    public function testDeleteItem()
+    {
+        $cache = new CacheManager([
+            'store' => 'array',
+            'stores' => [
+                'array' => [
+                    'driver' => 'array'
+                ]
+            ]
+        ]);
+
+        $cache->add('key', 'thevalue');
+        $cache->add('key2', 'thevalue');
+
+        $cache->deleteItems(['key', 'key2']);
+
+        $this->assertFalse($cache->has('key'));
+        $this->assertFalse($cache->has('key2'));
+    }
+
+    public function testSaveItem()
+    {
+        $cache = new CacheManager([
+            'store' => 'array',
+            'stores' => [
+                'array' => [
+                    'driver' => 'array'
+                ]
+            ]
+        ]);
+
+        $item = $cache->getItem('key');
+
+        $item->set('value');
+
+        $this->assertTrue($cache->save($item));
+    }
+
+    public function testSaveDefferedItem()
+    {
+        $cache = new CacheManager([
+            'store' => 'array',
+            'stores' => [
+                'array' => [
+                    'driver' => 'array'
+                ]
+            ]
+        ]);
+
+        $item = $cache->getItem('key');
+
+        $item->set('value');
+
+        $this->assertTrue($cache->saveDeferred($item));
+
+        $this->assertTrue($cache->defer('key0', 'thevalue', 10));
+
+        $this->assertTrue($cache->defer('key1', 'thevalue', \DateInterval::createFromDateString('+1 hour')));
+
+        $this->assertTrue($cache->defer('key2', 'thevalue', new \DateTime()));
     }
 
     public function testRememberItem()
@@ -297,6 +406,10 @@ class CacheTest extends TestCase
         $this->assertTrue($cache->has('key'));
 
         $this->assertEquals('thevalue', $cache->get('key'));
+
+        $this->assertEquals('thevalue', $value);
+
+        $value = $cache->remember('key', function(){ return 'thenewvalue';});
 
         $this->assertEquals('thevalue', $value);
     }
@@ -369,5 +482,37 @@ class CacheTest extends TestCase
 
         $this->assertFalse($cache->has('key'));
         $this->assertFalse($cache->has('key2'));
+    }
+
+    public function testGetItemIsCalledOnAdapter()
+    {
+        $mock = $this->createMock(ArrayAdapter::class);
+        $mock->method('getItem')
+            ->willReturn('foo');
+
+        $proxy = new ProxyAdapter($mock);
+
+        $cache = new CacheManager(['store' => 'driver']);
+        $cache->extend('driver', function() use ($proxy){
+            return $proxy;
+        });
+
+        $this->assertEquals('foo', $cache->getItem('key'));
+    }
+
+    public function testGetItemsIsCalledOnAdapter()
+    {
+        $mock = $this->createMock(ArrayAdapter::class);
+        $mock->method('getItems')
+            ->willReturn(['foo', 'bar']);
+
+        $proxy = new ProxyAdapter($mock);
+
+        $cache = new CacheManager(['store' => 'driver']);
+        $cache->extend('driver', function() use ($proxy){
+            return $proxy;
+        });
+
+        $this->assertSame(['foo', 'bar'], $cache->getItems(['key', 'key2']));
     }
 }
